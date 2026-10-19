@@ -54,3 +54,7 @@ Pushing a tag that starts with `v` runs the release workflow, which runs the che
 git tag v1.0.0
 git push origin v1.0.0
 ```
+
+## License
+
+[MIT](LICENSE).
