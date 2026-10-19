@@ -1,0 +1,17 @@
+[project]
+name = "times-table-grids"
+version = "1.0.0"
+description = "Printable times table worksheets where each answer is found by marking a 10x10 grid"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = ["reportlab==5.0.1"]
+
+[project.scripts]
+times-table-grids = "times_table_grids.worksheets:main"
+
+[dependency-groups]
+dev = ["pytest==9.1.1", "pytest-cov==7.1.0", "ruff==0.16.10"]
+
+[build-system]
+requires = ["hatchling==1.32.4"]
+build-backend = "hatchling.build"
