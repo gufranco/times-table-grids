@@ -1,38 +1,77 @@
 name: Release
 
 on:
-  push:
-    tags: ["v*"]
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release
   cancel-in-progress: false
 
 jobs:
-  check:
-    uses: ./.github/workflows/ci.yml
-
   release:
-    needs: check
+    name: Version and publish
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
     runs-on: ubuntu-26.04
-    timeout-minutes: 10
     permissions:
       contents: write
+      issues: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
+          ref: main
+          fetch-depth: 0
           persist-credentials: false
+
+      - name: Release only the commit CI passed
+        id: fresh
+        env:
+          PASSED: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -eu
+          if [ "$(git rev-parse HEAD)" = "$PASSED" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "main has moved past $PASSED; its own CI run will release it"
+            echo "current=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+        if: steps.fresh.outputs.current == 'true'
         with:
           version: "0.13.1"
           enable-cache: true
-      - run: uv sync --locked --no-dev
-      - run: uv run --no-dev times-table-grids dist
-      - name: Publish the release
+
+      - name: Run semantic-release
+        id: semrel
+        if: steps.fresh.outputs.current == 'true'
+        uses: cycjimmy/semantic-release-action@b12c8f6015dc215fe37bc154d4ad456dd3833c90  # v6.0.0
+        with:
+          semantic_version: 25.0.9
+          extra_plugins: |
+            @semantic-release/exec@7.1.0
+            @semantic-release/git@11.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build the grids for the released version
+        if: steps.semrel.outputs.new_release_published == 'true'
+        run: |
+          set -euo pipefail
+          uv sync --locked --no-dev
+          uv run --no-dev times-table-grids dist
+
+      - name: Attach the grids to the release
+        if: steps.semrel.outputs.new_release_published == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
-        run: gh release create "$TAG" dist/tabuada.pdf dist/times-table.pdf --title "$TAG" --generate-notes --verify-tag
+          RELEASE_TAG: ${{ steps.semrel.outputs.new_release_git_tag }}
+        run: |
+          set -euo pipefail
+          gh release upload "$RELEASE_TAG" \
+            dist/tabuada.pdf dist/times-table.pdf --clobber
