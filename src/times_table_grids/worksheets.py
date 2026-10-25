@@ -1,13 +1,12 @@
-import sys
-from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Protocol
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.pdfgen.canvas import Canvas
 
-from times_table_grids.locales import LOCALES, Locale
+from times_table_grids.locales import Locale
 
 TABLES = range(1, 11)
 FACTORS = range(1, 11)
@@ -27,12 +26,23 @@ TEXT_GRAY = 0.35
 AXIS_GRAY = 0.5
 BOLD = "Helvetica-Bold"
 REGULAR = "Helvetica"
-DEFAULT_OUTPUT_DIR = Path("dist")
+TITLE_SIZE = 22
 TIMES = "×"
 CONTENT_TOP = A4[1] - MARGIN - HEADER_HEIGHT
 SLOT_WIDTH = (A4[0] - 2 * MARGIN) / SLOT_COLUMNS
 SLOT_HEIGHT = (CONTENT_TOP - MARGIN) / SLOT_ROWS
 EXAMPLE_ROWS, EXAMPLE_COLS, EXAMPLE_GRID = 2, 3, 5
+
+
+class GuideText(Protocol):
+    @property
+    def guide_title(self) -> str: ...
+    @property
+    def guide_steps(self) -> tuple[str, str, str, str]: ...
+    @property
+    def guide_tip(self) -> str: ...
+    @property
+    def example_label(self) -> str: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -124,10 +134,11 @@ def draw_answer_box(canvas: Canvas, left: float, baseline: float, answer: str) -
     canvas.drawCentredString(left + 6.5 * mm, baseline, answer)
 
 
-def draw_equation(
-    canvas: Canvas, left: float, baseline: float, rows: int, cols: int
-) -> float:
-    equation = f"{rows} {TIMES} {cols} ="
+def times_equation(rows: int, cols: int) -> str:
+    return f"{rows} {TIMES} {cols} ="
+
+
+def draw_equation(canvas: Canvas, left: float, baseline: float, equation: str) -> float:
     canvas.setFont(BOLD, 14)
     canvas.setFillGray(BLACK)
     canvas.drawString(left, baseline, equation)
@@ -147,16 +158,15 @@ def draw_exercise(
     canvas: Canvas, slot: Slot, exercise: Exercise, locale: Locale
 ) -> None:
     baseline = slot.top - 6 * mm
-    box_left = draw_equation(
-        canvas, slot.left, baseline, exercise.table, exercise.factor
-    )
+    equation = times_equation(exercise.table, exercise.factor)
+    box_left = draw_equation(canvas, slot.left, baseline, equation)
     draw_answer_box(canvas, box_left, baseline, "")
     draw_hint(canvas, box_left + 15 * mm, baseline, exercise, locale)
     draw_axis_numbers(canvas, slot.grid_left, slot.grid_top, GRID_SIZE, slot.cell)
     draw_grid(canvas, slot.grid_left, slot.grid_top, GRID_SIZE, slot.cell)
 
 
-def draw_guide_text(canvas: Canvas, left: float, top: float, locale: Locale) -> None:
+def draw_guide_text(canvas: Canvas, left: float, top: float, locale: GuideText) -> None:
     canvas.setFillGray(BLACK)
     canvas.setFont(BOLD, 13)
     canvas.drawString(left, top - 9 * mm, locale.guide_title)
@@ -168,20 +178,28 @@ def draw_guide_text(canvas: Canvas, left: float, top: float, locale: Locale) -> 
     canvas.drawString(left, top - 47 * mm, locale.guide_tip)
 
 
-def draw_guide_example(canvas: Canvas, left: float, top: float, locale: Locale) -> None:
+def draw_example_heading(
+    canvas: Canvas, left: float, top: float, label: str, equation: str, answer: int
+) -> None:
     canvas.setFont(BOLD, 10)
     canvas.setFillGray(BLACK)
-    canvas.drawString(left, top - 9 * mm, locale.example_label)
+    canvas.drawString(left, top - 9 * mm, label)
     baseline = top - 17 * mm
-    box_left = draw_equation(canvas, left, baseline, EXAMPLE_ROWS, EXAMPLE_COLS)
-    draw_answer_box(canvas, box_left, baseline, str(EXAMPLE_ROWS * EXAMPLE_COLS))
+    box_left = draw_equation(canvas, left, baseline, equation)
+    draw_answer_box(canvas, box_left, baseline, str(answer))
+
+
+def draw_guide_example(canvas: Canvas, left: float, top: float, locale: Locale) -> None:
+    equation = times_equation(EXAMPLE_ROWS, EXAMPLE_COLS)
+    answer = EXAMPLE_ROWS * EXAMPLE_COLS
+    draw_example_heading(canvas, left, top, locale.example_label, equation, answer)
     grid_left, grid_top = left + AXIS_SPACE, top - 27 * mm
     draw_axis_numbers(canvas, grid_left, grid_top, EXAMPLE_GRID, GUIDE_CELL)
     draw_grid(canvas, grid_left, grid_top, EXAMPLE_GRID, GUIDE_CELL)
     draw_marks(canvas, grid_left, grid_top, EXAMPLE_ROWS, EXAMPLE_COLS)
 
 
-def draw_guide(canvas: Canvas, locale: Locale) -> None:
+def draw_guide_frame(canvas: Canvas) -> float:
     width = GUIDE_SLOTS * SLOT_WIDTH - 4 * mm
     height = SLOT_HEIGHT - 6 * mm
     canvas.setStrokeGray(AXIS_GRAY)
@@ -189,22 +207,31 @@ def draw_guide(canvas: Canvas, locale: Locale) -> None:
     canvas.setDash(3, 2)
     canvas.roundRect(MARGIN, CONTENT_TOP - height, width, height, 3 * mm)
     canvas.setDash()
+    return MARGIN + width - 40 * mm
+
+
+def draw_guide(canvas: Canvas, locale: Locale) -> None:
+    example_left = draw_guide_frame(canvas)
     draw_guide_text(canvas, MARGIN + 4 * mm, CONTENT_TOP, locale)
-    draw_guide_example(canvas, MARGIN + width - 40 * mm, CONTENT_TOP, locale)
+    draw_guide_example(canvas, example_left, CONTENT_TOP, locale)
 
 
-def draw_header(canvas: Canvas, table: int, locale: Locale) -> None:
+def draw_header(canvas: Canvas, title: str, name_label: str) -> None:
     baseline = A4[1] - MARGIN - 8 * mm
+    name_line = f"{name_label} ______________________"
+    room = A4[0] - 2 * MARGIN - canvas.stringWidth(name_line, REGULAR, 11) - 6 * mm
+    size = min(
+        TITLE_SIZE, TITLE_SIZE * room / canvas.stringWidth(title, BOLD, TITLE_SIZE)
+    )
     canvas.setFillGray(BLACK)
-    canvas.setFont(BOLD, 22)
-    canvas.drawString(MARGIN, baseline, locale.title_for(table))
+    canvas.setFont(BOLD, size)
+    canvas.drawString(MARGIN, baseline, title)
     canvas.setFont(REGULAR, 11)
-    name_line = f"{locale.name_label} ______________________"
     canvas.drawRightString(A4[0] - MARGIN, baseline, name_line)
 
 
 def draw_page(canvas: Canvas, table: int, locale: Locale) -> None:
-    draw_header(canvas, table, locale)
+    draw_header(canvas, locale.title_for(table), locale.name_label)
     draw_guide(canvas, locale)
     for slot, exercise in zip(exercise_slots(), exercises_for(table), strict=True):
         draw_exercise(canvas, slot, exercise, locale)
@@ -217,14 +244,3 @@ def build(output: Path, locale: Locale) -> None:
     for table in TABLES:
         draw_page(canvas, table, locale)
     canvas.save()
-
-
-def main(argv: Sequence[str] | None = None) -> int:
-    args = sys.argv[1:] if argv is None else argv
-    output_dir = Path(args[0]) if args else DEFAULT_OUTPUT_DIR
-    output_dir.mkdir(parents=True, exist_ok=True)
-    for locale in LOCALES:
-        output = output_dir / f"{locale.file_stem}.pdf"
-        build(output, locale)
-        sys.stdout.write(f"{output.resolve()}\n")
-    return 0

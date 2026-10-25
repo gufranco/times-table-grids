@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from times_table_grids.locales import EN, LOCALES, PT_BR, Locale
+from times_table_grids.locales import EN, PT_BR, Locale
 from times_table_grids.worksheets import (
     GRID_SIZE,
     MARGIN,
@@ -13,7 +13,6 @@ from times_table_grids.worksheets import (
     exercise_slots,
     exercises_for,
     grid_line_styles,
-    main,
 )
 
 PAGE_OBJECT = re.compile(rb"/Type /Page\b(?!s)")
@@ -84,17 +83,3 @@ def test_build_writes_one_page_per_table(tmp_path: Path, locale: Locale) -> None
     # Assert
     assert output.read_bytes().startswith(b"%PDF")
     assert page_count(output) == 10
-
-
-def test_main_writes_one_pdf_per_locale_into_the_given_directory(
-    tmp_path: Path,
-) -> None:
-    # Arrange
-    expected = sorted(f"{locale.file_stem}.pdf" for locale in LOCALES)
-
-    # Act
-    exit_code = main([str(tmp_path)])
-
-    # Assert
-    assert exit_code == 0
-    assert sorted(path.name for path in tmp_path.iterdir()) == expected

@@ -74,4 +74,4 @@ jobs:
         run: |
           set -euo pipefail
           gh release upload "$RELEASE_TAG" \
-            dist/tabuada.pdf dist/times-table.pdf --clobber
+            dist/*.pdf --clobber
