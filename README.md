@@ -2,6 +2,11 @@
 
 Printable worksheets for an 8-year-old: the 1 to 10 times tables, division by 1 to 10, and faces, edges and vertices of solids. Each times table and each divisor gets one A4 page. Every exercise comes with an empty 10x10 grid. To solve `3 × 4`, the child marks an X in 3 rows of 4 squares, counts the marks, and writes the answer.
 
+[![ci](https://img.shields.io/github/actions/workflow/status/gufranco/times-table-grids/ci.yml?branch=main&style=flat-square&label=ci)](https://github.com/gufranco/times-table-grids/actions/workflows/ci.yml)
+[![release](https://img.shields.io/github/v/release/gufranco/times-table-grids?style=flat-square&label=release)](https://github.com/gufranco/times-table-grids/releases/latest)
+[![coverage](https://img.shields.io/badge/coverage-95%25-brightgreen?style=flat-square)](https://github.com/gufranco/times-table-grids/actions/workflows/ci.yml)
+[![license](https://img.shields.io/github/license/gufranco/times-table-grids?style=flat-square&label=license)](LICENSE)
+
 Every grid is the same size on purpose. A grid sized to the answer would give the answer away; a fixed 10x10 grid makes the child find the rectangle.
 
 Two languages ship from the same layout:
