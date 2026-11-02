@@ -15,5 +15,5 @@ times-table-grids = "times_table_grids.cli:main"
 dev = ["pytest==9.1.1", "pytest-cov==7.1.0", "ruff==0.16.10"]
 
 [build-system]
-requires = ["hatchling==1.32.4"]
+requires = ["hatchling==1.33.0"]
 build-backend = "hatchling.build"
