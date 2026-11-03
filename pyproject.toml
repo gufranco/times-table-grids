@@ -6,7 +6,7 @@ readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.13"
-dependencies = ["reportlab==5.0.1"]
+dependencies = ["reportlab==5.1.0"]
 
 [project.scripts]
 times-table-grids = "times_table_grids.cli:main"
