@@ -12,7 +12,7 @@ dependencies = ["reportlab==5.1.0"]
 times-table-grids = "times_table_grids.cli:main"
 
 [dependency-groups]
-dev = ["pytest==9.2.0", "pytest-cov==7.1.0", "ruff==0.17.3"]
+dev = ["pytest==9.2.0", "pytest-cov==7.1.0", "ruff==0.17.4"]
 
 [build-system]
 requires = ["hatchling==1.33.0"]
